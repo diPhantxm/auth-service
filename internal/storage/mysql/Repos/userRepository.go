@@ -1,7 +1,6 @@
 package Repos
 
 import (
-	"auth/internal/crypto"
 	"auth/internal/model"
 	"database/sql"
 
@@ -18,36 +17,32 @@ func New(db *sql.DB) UserRepository {
 	}
 }
 
-func (r UserRepository) Auth(login string, pwd string) (*model.User, error) {
-	user := &model.User{}
+func (r UserRepository) GetByLogin(login string) (model.User, error) {
+	user := model.User{}
 
 	if err := r.db.QueryRow(
 		`SELECT * FROM [auth-service].[dbo].[users] WHERE login=@p1`,
 		login,
 	).Scan(&user.ID, &user.Login, &user.Password); err != nil {
-		return nil, err
+		return user, err
 	}
 
-	if ok, err := crypto.TestPassword(user.Password, pwd); ok {
-		return user, nil
-	} else {
-		return nil, err
-	}
+	return user, nil
 }
 
-func (r UserRepository) ChangePassword(login string, curr, new string) bool {
-	if _, err := r.Auth(login, curr); err != nil {
+func (r UserRepository) ChangePassword(login string, currentPassword, newPassword string) bool {
+	user, err := r.GetByLogin(login)
+	if err != nil {
 		return false
 	}
 
-	newH, err := crypto.Hash(new)
-	if err != nil {
+	if user.Password != currentPassword {
 		return false
 	}
 
 	if err := r.db.QueryRow(
 		`UPDATE [auth-service].[dbo].[users] SET password=@p1 WHERE login=@p2`,
-		newH,
+		newPassword,
 		login,
 	); err.Err() != nil {
 		return false
@@ -57,18 +52,13 @@ func (r UserRepository) ChangePassword(login string, curr, new string) bool {
 }
 
 func (r UserRepository) SignUp(user model.User) (string, error) {
-	password, err := crypto.Hash(user.Password)
-	if err != nil {
-		return "", err
-	}
-
 	id := uuid.New().String()
 
 	if err := r.db.QueryRow(
 		`INSERT INTO [auth-service].[dbo].[users] OUTPUT INSERTED.ID VALUES (@p1, @p2, @p3)`,
 		id,
 		user.Login,
-		password,
+		user.Password,
 	).Scan(&id); err != nil {
 		return "", err
 	}

@@ -8,8 +8,8 @@ func Hash(s string) (string, error) {
 	return string(bytes), err
 }
 
-func TestPassword(h, s string) (bool, error) {
-	if err := bcrypt.CompareHashAndPassword([]byte(h), []byte(s)); err != nil {
+func TestPassword(hashedPassword, PlainPassword string) (bool, error) {
+	if err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(PlainPassword)); err != nil {
 		return false, err
 	}
 

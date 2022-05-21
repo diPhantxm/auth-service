@@ -1,7 +1,6 @@
 package Repos
 
 import (
-	"auth/internal/crypto"
 	"auth/internal/model"
 	"database/sql"
 
@@ -12,36 +11,32 @@ type UserRepository struct {
 	db *sql.DB
 }
 
-func (r UserRepository) Auth(login string, pwd string) (*model.User, error) {
-	user := &model.User{}
+func (r UserRepository) GetByLogin(login string) (model.User, error) {
+	user := model.User{}
 
 	if err := r.db.QueryRow(
 		`SELECT * FROM users WHERE login=$1`,
 		login,
 	).Scan(&user.ID, &user.Login, &user.Password); err != nil {
-		return nil, err
+		return user, err
 	}
 
-	if ok, res := crypto.TestPassword(user.Password, pwd); ok {
-		return user, nil
-	} else {
-		return nil, res
-	}
+	return user, nil
 }
 
-func (r UserRepository) ChangePassword(login string, currPwd, newPwd string) bool {
-	if _, err := r.Auth(login, currPwd); err != nil {
+func (r UserRepository) ChangePassword(login string, currentPassword, newPassword string) bool {
+	user, err := r.GetByLogin(login)
+	if err != nil {
 		return false
 	}
 
-	newPwdHashed, err := crypto.Hash(newPwd)
-	if err != nil {
+	if user.Password != currentPassword {
 		return false
 	}
 
 	if err := r.db.QueryRow(
 		`UPDATE users SET password=$1 WHERE login=$2`,
-		newPwdHashed,
+		newPassword,
 		login,
 	); err.Err() != nil {
 		return false
@@ -51,18 +46,13 @@ func (r UserRepository) ChangePassword(login string, currPwd, newPwd string) boo
 }
 
 func (r UserRepository) SignUp(user model.User) (string, error) {
-	passwordHashed, err := crypto.Hash(user.Password)
-	if err != nil {
-		return "", err
-	}
-
 	id := uuid.New().String()
 
 	if err := r.db.QueryRow(
 		`INSERT INTO users (id, login, password) VALUES ($1, $2, $3)`,
 		id,
 		user.Login,
-		passwordHashed,
+		user.Password,
 	); err.Err() != nil {
 		return "", err.Err()
 	}

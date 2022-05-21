@@ -1,9 +1,11 @@
 package service
 
 import (
+	"auth/internal/crypto"
 	"auth/internal/model"
 	"auth/internal/tokenController"
 	"context"
+	"fmt"
 
 	"auth/internal/storage"
 	//dbDriver "auth/internal/storage/mysql"
@@ -24,14 +26,21 @@ type basicAuthService struct {
 }
 
 func (b *basicAuthService) Auth(ctx context.Context, login string, password string) (token string, err error) {
-	user, err := b.storage.Users().Auth(login, password)
-
+	user, err := b.storage.Users().GetByLogin(login)
 	if err != nil {
-		token = ""
-		return token, nil
+		return "", err
 	}
 
-	return b.TokenController.Create(*user)
+	match, err := crypto.TestPassword(user.Password, password)
+	if err != nil {
+		return "", err
+	}
+
+	if !match {
+		return "", fmt.Errorf("Password is incorrect.\n")
+	}
+
+	return b.TokenController.Create(user)
 }
 func (b *basicAuthService) ChangePassword(ctx context.Context, login string, curr string, new string) (success bool, err error) {
 	success = b.storage.Users().ChangePassword(login, curr, new)
@@ -39,6 +48,13 @@ func (b *basicAuthService) ChangePassword(ctx context.Context, login string, cur
 	return success, err
 }
 func (b *basicAuthService) SignUp(ctx context.Context, user model.User) (id string, err error) {
+	hashedPassword, err := crypto.Hash(user.Password)
+	if err != nil {
+		return "", err
+	}
+
+	user.Password = hashedPassword
+
 	return b.storage.Users().SignUp(user)
 }
 func (b *basicAuthService) Delete(ctx context.Context, id string) (err error) {
