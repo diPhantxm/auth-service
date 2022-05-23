@@ -1,18 +1,24 @@
-package Repos
+package storage
 
 import (
 	"auth/internal/model"
-	"database/sql"
+	"auth/internal/storage/Repos"
 	"math/rand"
 	"testing"
-
-	repoDriver "auth/internal/storage/mysql/Repos"
 
 	_ "github.com/denisenkom/go-mssqldb"
 )
 
-var driver = "sqlserver"
-var connectionString = "auth-service:auth-service@192.168.0.179:3306/MSSQLSERVER?database=auth-service"
+const driver = "sqlserver"
+const connectionString = "auth-service:auth-service@192.168.0.179:3306/MSSQLSERVER?database=auth-service"
+
+func TestStorageConnection(t *testing.T) {
+	_, err := Connect(driver, connectionString)
+
+	if err != nil {
+		t.Errorf("Storage didn't connect to database. Error: %s\n", err.Error())
+	}
+}
 
 func TestRepository(t *testing.T) {
 	testUsers := []model.User{
@@ -25,8 +31,12 @@ func TestRepository(t *testing.T) {
 		{Login: "_", Password: "_"},
 	}
 
-	dbConnection := connectDB(t)
-	repo := repoDriver.New(dbConnection)
+	storage, err := Connect(driver, connectionString)
+	if err != nil {
+		t.Fatalf("Storage didn't connect to database. Error: %s\n", err.Error())
+	}
+
+	repo := storage.Users()
 
 	for _, user := range testUsers {
 		create(&user, repo, t)
@@ -36,7 +46,7 @@ func TestRepository(t *testing.T) {
 	}
 }
 
-func create(user *model.User, repo UserRepository, t *testing.T) {
+func create(user *model.User, repo Repos.UserRepository, t *testing.T) {
 	var err error
 
 	user.ID, err = repo.SignUp(*user)
@@ -45,7 +55,7 @@ func create(user *model.User, repo UserRepository, t *testing.T) {
 	}
 }
 
-func read(user *model.User, repo UserRepository, t *testing.T) {
+func read(user *model.User, repo Repos.UserRepository, t *testing.T) {
 	gotUser, err := repo.GetByLogin(user.Login)
 	if err != nil {
 		t.Errorf("Test failed on Read. Error: %s\n", err.Error())
@@ -56,7 +66,7 @@ func read(user *model.User, repo UserRepository, t *testing.T) {
 	}
 }
 
-func updatePassword(user *model.User, repo UserRepository, t *testing.T) {
+func updatePassword(user *model.User, repo Repos.UserRepository, t *testing.T) {
 	newPassword := generateRandomPassword()
 	success := repo.ChangePassword(user.Login, user.Password, newPassword)
 	if !success {
@@ -66,25 +76,11 @@ func updatePassword(user *model.User, repo UserRepository, t *testing.T) {
 	user.Password = newPassword
 }
 
-func delete(user *model.User, repo UserRepository, t *testing.T) {
+func delete(user *model.User, repo Repos.UserRepository, t *testing.T) {
 	err := repo.Delete(user.ID)
 	if err != nil {
 		t.Errorf("Test failed on Delete. Error: %s\n", err.Error())
 	}
-}
-
-func connectDB(t *testing.T) *sql.DB {
-	db, err := sql.Open(driver, connectionString)
-
-	if err != nil {
-		t.Fatalf("Test failed with no db connection. Error: %s\n", err.Error())
-	}
-
-	if err := db.Ping(); err != nil {
-		t.Fatalf("Test failed with no db connection. Error: %s\n", err.Error())
-	}
-
-	return db
 }
 
 func generateRandomPassword() string {
