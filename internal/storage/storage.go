@@ -2,45 +2,53 @@ package storage
 
 import (
 	"database/sql"
+	"fmt"
 
 	"auth/internal/storage/Repos"
 
 	log "github.com/go-kit/kit/log"
 )
 
-type Storage interface {
-	Connect(connStr string)
+type IStorage interface {
 	Disconnect()
 	Users() Repos.UserRepository
 }
 
-type AStorage struct {
+type storage struct {
 	UsersRepo Repos.UserRepository
 	DB        *sql.DB
 	Logger    log.Logger
-	Driver    string
 }
 
-func (s *AStorage) Connect(connStr string) {
-	var err error
-	s.DB, err = sql.Open(s.Driver, connStr)
+func Connect(driver string, connStr string) (IStorage, error) {
+	db, err := sql.Open(driver, connStr)
 
 	if err != nil {
-		s.Logger.Log("err", err)
+		return nil, err
 	}
 
-	if err = s.DB.Ping(); err != nil {
-		s.Logger.Log("err", err)
+	if err = db.Ping(); err != nil {
+		return nil, err
 	}
+
+	repo := Repos.CreateUserRepo(driver, db)
+	if repo == nil {
+		return nil, fmt.Errorf("Factory didn't manage to create User Repository\n")
+	}
+
+	return &storage{
+		DB:        db,
+		UsersRepo: repo,
+	}, nil
 }
 
-func (s *AStorage) Disconnect() {
+func (s *storage) Disconnect() {
 	err := s.DB.Close()
 	if err != nil {
 		s.Logger.Log("err", err)
 	}
 }
 
-func (s *AStorage) Users() Repos.UserRepository {
+func (s *storage) Users() Repos.UserRepository {
 	return s.UsersRepo
 }

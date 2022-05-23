@@ -6,10 +6,9 @@ import (
 	"auth/internal/tokenController"
 	"context"
 	"fmt"
+	"log"
 
 	"auth/internal/storage"
-	//dbDriver "auth/internal/storage/mysql"
-	dbDriver "auth/internal/storage/postgres"
 )
 
 // AuthService describes the service.
@@ -21,7 +20,7 @@ type AuthService interface {
 }
 
 type basicAuthService struct {
-	storage         storage.Storage
+	storage         storage.IStorage
 	TokenController tokenController.TokenController
 }
 
@@ -37,7 +36,7 @@ func (b *basicAuthService) Auth(ctx context.Context, login string, password stri
 	}
 
 	if !match {
-		return "", fmt.Errorf("Password is incorrect.\n")
+		return "", fmt.Errorf("Password is incorrect")
 	}
 
 	return b.TokenController.Create(user)
@@ -62,15 +61,22 @@ func (b *basicAuthService) Delete(ctx context.Context, id string) (err error) {
 }
 
 // NewBasicAuthService returns a naive, stateless implementation of AuthService.
-func NewBasicAuthService(dbConn string) AuthService {
-	return &basicAuthService{
-		storage: dbDriver.New(dbConn),
+func NewBasicAuthService(driver string, connectionString string) AuthService {
+	storage, err := storage.Connect(driver, connectionString)
+	if err != nil {
+		log.Fatalf("Storage didn't connect to database. Error: %s\n", err.Error())
 	}
+
+	basicSvc := &basicAuthService{
+		storage: storage,
+	}
+
+	return basicSvc
 }
 
 // New returns a AuthService with all of the expected middleware wired in.
-func New(dbConn string, tokenController tokenController.TokenController, middleware []Middleware) AuthService {
-	var svc AuthService = NewBasicAuthService(dbConn)
+func New(driver string, connectionString string, tokenController tokenController.TokenController, middleware []Middleware) AuthService {
+	var svc AuthService = NewBasicAuthService(driver, connectionString)
 
 	for _, m := range middleware {
 		svc = m(svc)

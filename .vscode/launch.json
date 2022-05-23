@@ -5,12 +5,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch file",
+            "name": "Main Debug",
             "type": "go",
             "request": "launch",
             "mode": "debug",
             "program": "cmd/main.go"
-        }
-
+        },
     ]
 }

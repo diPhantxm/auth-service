@@ -46,6 +46,7 @@ var appdashAddr = fs.String("appdash-addr", "", "Enable Appdash tracing via an A
 
 //var connectionString = fs.String("data-source", "auth-service:auth-service@192.168.0.179:3306/MSSQLSERVER?database=auth-service", "Connection string to database")
 var connectionString = fs.String("data-source", "user=postgres password=postgres dbname=auth-service sslmode=disable", "Connection string to database")
+var driver = fs.String("db-driver", "mysql", "Database Driver")
 var tokenControllerInstance = tokenController.NewJWTController()
 
 func Run() {
@@ -88,7 +89,7 @@ func Run() {
 		tracer = opentracinggo.GlobalTracer()
 	}
 
-	svc := service.New(*connectionString, tokenControllerInstance, getServiceMiddleware(logger))
+	svc := service.New(*driver, *connectionString, tokenControllerInstance, getServiceMiddleware(logger))
 	eps := endpoint.New(svc, getEndpointMiddleware(logger))
 	g := createService(eps)
 	initMetricsEndpoint(g)
