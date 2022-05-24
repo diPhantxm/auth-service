@@ -40,7 +40,7 @@ func (c JWTController) Verify(tokenStr string) (bool, error) {
 			return nil, fmt.Errorf("Unexpected signing method")
 		}
 
-		return key, nil
+		return []byte(key), nil
 	})
 
 	if err != nil {
@@ -49,12 +49,12 @@ func (c JWTController) Verify(tokenStr string) (bool, error) {
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 
-		if time.Unix(claims["exp"].(int64), 0).After(time.Now()) {
-			return true, nil
-		} else {
-			return false, nil
-		}
+		expUnixTime := int64(claims["exp"].(float64))
+		return time.Unix(expUnixTime, 0).After(time.Now()), nil
+
 	} else {
+
 		return false, fmt.Errorf("Token is not valid")
+
 	}
 }
