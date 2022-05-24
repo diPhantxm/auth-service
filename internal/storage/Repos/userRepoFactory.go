@@ -1,8 +1,8 @@
 package Repos
 
 import (
-	mysql "auth/internal/storage/mysql/Repos"
-	postgres "auth/internal/storage/postgres/Repos"
+	mysql "auth/pkg/storage/mysql/Repos"
+	postgres "auth/pkg/storage/postgres/Repos"
 
 	"database/sql"
 )
